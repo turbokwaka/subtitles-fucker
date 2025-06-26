@@ -27,3 +27,44 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(STYLESHEET)
         self.setCentralWidget(central_widget)
         print(self.width(), self.height())
+
+    def start_transcription(self):
+        from transcribe_worker import TranscribeWorker
+        from PyQt6.QtCore import QThread
+        from PyQt6.QtWidgets import QMessageBox
+
+        if not self.video_player.video_path:
+            QMessageBox.warning(self, "Помилка", "Спочатку завантаж відео!")
+            return
+        if not self.crop_rect:
+            QMessageBox.warning(self, "Помилка", "Не виділена область на відео.")
+            return
+
+        x0, y0, x1, y1 = self.crop_rect
+        lang = self.select_lang.currentData()
+        frames_skip = int(self.select_frames_skip.currentText())
+
+        self.thread = QThread()
+        self.worker = TranscribeWorker(
+            video_path=self.video_player.video_path,
+            frames_to_skip=frames_skip,
+            lang=lang,
+            crop_x=x0,
+            crop_y=y0,
+            crop_width=x1 - x0,
+            crop_height=y1 - y0,
+        )
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        def on_finished(success, msg):
+            QMessageBox.information(self, "Результат", msg if success else f"❌ {msg}")
+
+        self.worker.finished.connect(on_finished)
+        self.thread.start()
+
+

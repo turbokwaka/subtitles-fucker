@@ -212,52 +212,59 @@ def create_main_widget(parent_window):
     source_group = QGroupBox("Звідки субтитри витягуєм?")
     source_layout = QVBoxLayout(source_group)
     source_layout.addWidget(QLabel("🎬 Відеофайл:"))
-    drop_widget = DropWidget()
-    drop_widget.setObjectName("dropZone")
-    source_layout.addWidget(drop_widget)
+    parent_window.drop_widget = DropWidget()
+    parent_window.drop_widget.setObjectName("dropZone")
+    source_layout.addWidget(parent_window.drop_widget)
 
-    text_edit = QTextEdit()
+    parent_window.text_edit = QTextEdit()
     source_layout.addWidget(QLabel("🔗 Посилання на відео?:"))
-    text_edit.setPlaceholderText("Посилання на YouTube відео...")
-    text_edit.setMaximumHeight(30)
-    source_layout.addWidget(text_edit)
+    parent_window.text_edit.setPlaceholderText("Посилання на YouTube відео...")
+    parent_window.text_edit.setMaximumHeight(30)
+    source_layout.addWidget(parent_window.text_edit)
     left_layout.addWidget(source_group)
 
     settings_group = QGroupBox("⚙️ Налаштування")
     settings_layout = QVBoxLayout(settings_group)
 
-    video_player = VideoPlayer()
+    parent_window.video_player = VideoPlayer()
+    parent_window.video_path = None
+    parent_window.crop_rect = None
 
-    drop_widget.fileDropped.connect(video_player.load_video)
-    settings_layout.addWidget(video_player)
+    parent_window.video_player.video_frame_label.region_selected.connect(
+        lambda x0, y0, x1, y1: setattr(
+            parent_window,
+            "crop_rect",
+            parent_window.video_player.translate_wh(x0, y0, x1, y1)
+        )
+    )
+    parent_window.drop_widget.fileDropped.connect(parent_window.video_player.load_video)
+    settings_layout.addWidget(parent_window.video_player)
     settings_layout.addStretch()
 
-    select_lang = QComboBox()
-    select_lang.addItem("Українська", "uk")
-    select_lang.addItem("Англійська", "en")
-    select_lang.addItem("Італійська", "it")
-    select_lang.addItem("Японська", "jp")
-    lang_setting = SettingsItem("Мова:", select_lang)
+    parent_window.select_lang = QComboBox()
+    parent_window.select_lang.addItem("Українська", "uk")
+    parent_window.select_lang.addItem("Англійська", "en")
+    parent_window.select_lang.addItem("Італійська", "it")
+    parent_window.select_lang.addItem("Японська", "jp")
+    lang_setting = SettingsItem("Мова:", parent_window.select_lang)
 
-    select_frames_skip = QComboBox()
-    select_frames_skip.addItem("1")
-    select_frames_skip.addItem("15")
-    select_frames_skip.addItem("30")
-    select_frames_skip.addItem("45")
-    select_frames_skip.addItem("60")
-    frames_skip_setting = SettingsItem("Сіко кадрів пропускати?:", select_frames_skip)
+    parent_window.select_frames_skip = QComboBox()
+    parent_window.select_frames_skip.addItems(["1", "15", "30", "45", "60"])
+    frames_skip_setting = SettingsItem("Скіко кадрів пропускати?:", parent_window.select_frames_skip)
 
-    start_button = QPushButton("Погналі?")
-    start_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+    parent_window.start_button = QPushButton("Погналі?")
+    parent_window.start_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+    parent_window.start_button.clicked.connect(parent_window.start_transcription)
 
     select_settings = QHBoxLayout()
     select_settings.addWidget(lang_setting)
     select_settings.addWidget(frames_skip_setting)
     select_settings.addStretch()
-    select_settings.addWidget(start_button)
+    select_settings.addWidget(parent_window.start_button)
     settings_layout.addLayout(select_settings)
 
     left_layout.addWidget(settings_group, stretch=1)
     main_layout.addLayout(left_layout)
 
     return central_widget
+
