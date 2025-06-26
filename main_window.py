@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("ти уйобіще, закрий мене")
-        self.setFixedWidth(680)
+        self.setFixedWidth(750)
         self.setFixedHeight(750)
         QFontDatabase.addApplicationFont("assets/Montserrat-Regular.ttf")
         QFontDatabase.addApplicationFont("assets/Montserrat-Bold.ttf")

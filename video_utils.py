@@ -26,3 +26,17 @@ def count_frames(video_path):
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
     return total
+
+def get_video_wh(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Не вдалося відкрити відео: {video_path}")
+
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        raise ValueError("Не вдалося прочитати кадр з відео")
+
+    height, width = frame.shape[:2]
+    return width, height

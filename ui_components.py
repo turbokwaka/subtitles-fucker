@@ -1,9 +1,10 @@
 # ui_components.py
 
-from PyQt6.QtCore import QTimer, pyqtSlot
+from PyQt6.QtCore import QTimer, pyqtSlot, QRect
+from PyQt6.QtGui import QPainter, QPen, QColor
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QGroupBox, QTextEdit, QComboBox, QPushButton, QSlider, QSizePolicy
 
-from video_utils import load_and_show_frame, count_frames
+from video_utils import load_and_show_frame, count_frames, get_video_wh
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout
 from PyQt6.QtCore import pyqtSignal, Qt
 import os
@@ -38,43 +39,50 @@ class DropWidget(QFrame):
             event.ignore()
 
 class VideoFrameLabel(QLabel):
+    region_selected = pyqtSignal(int, int, int, int)
     def __init__(self):
         super().__init__()
         self.setMouseTracking(True)
         self.original_pixmap = None
-        self.x_0 = None
-        self.x_1 = None
-        self.y_0 = None
-        self.y_1 = None
-        self.selecting_frame:bool = False
         self.setFixedSize(640, 360)
+        self.setObjectName("frameSelect")
 
-        self.resize_timer = QTimer()
-        self.resize_timer.setSingleShot(True)
-        self.resize_timer.timeout.connect(self.update_scaled_pixmap)
+        self.selecting = False
+        self.start_point = None
+        self.end_point = None
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            if not self.selecting_frame:
-                self.selecting_frame = True
-                self.x_0 = event.pos().x()
-                self.y_0 = event.pos().y()
-                print(f"x_0={self.x_0}, y_0={self.y_0}")
-            else:
-                self.selecting_frame = False
-                self.x_1 = event.pos().x()
-                self.y_1 = event.pos().y()
-                print(f"x_1={self.x_1}, y_1={self.y_1}")
+            self.selecting = True
+            self.start_point = event.pos()
+            self.end_point = event.pos()
+            self.update()
 
-    def update_scaled_pixmap(self):
-        if self.original_pixmap:
-            print(self.size().width(), self.size().height())
-            scaled = self.original_pixmap.scaled(
-                self.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-            )
-            self.setPixmap(scaled)
-            print(self.size().width(), self.size().height())
+    def mouseMoveEvent(self, event):
+        if self.selecting:
+            self.end_point = event.pos()
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.selecting:
+            self.selecting = False
+            self.end_point = event.pos()
+            self.update()
+            x0, y0 = self.start_point.x(), self.start_point.y()
+            x1, y1 = self.end_point.x(), self.end_point.y()
+
+            print(f"Selected rectangle: ({x0}, {y0}) -> ({x1}, {y1})")
+            self.region_selected.emit(x0, y0, x1, y1)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.start_point and self.end_point and (self.selecting or self.start_point != self.end_point):
+            painter = QPainter(self)
+            pen = QPen(QColor("#4cc9f0"), 2, Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            rect = QRect(self.start_point, self.end_point)
+            painter.drawRect(rect)
+
 
 class VideoSlider(QWidget):
     frame_selected = pyqtSignal(int)
@@ -120,15 +128,25 @@ class VideoPlayer(QWidget):
         self.video_frame_label = VideoFrameLabel()
         self.video_slider = VideoSlider()
 
+        # Центрування відео лейбла
+        h_layout = QHBoxLayout()
+        h_layout.addStretch(1)
+        h_layout.addWidget(self.video_frame_label)
+        h_layout.addStretch(1)
+
         self.frames_count = None
         self.current_frame = None
         self.video_path = None
+        self.video_width = None
+        self.video_height = None
 
         self.video_slider.frame_selected.connect(self.on_frame_selected)
+        self.video_frame_label.region_selected.connect(self.handle_region_selected)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(self.video_frame_label)
+        layout.addLayout(h_layout)
         layout.addWidget(self.video_slider)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     @pyqtSlot(str)
@@ -136,6 +154,7 @@ class VideoPlayer(QWidget):
         load_and_show_frame(file_path, self.video_frame_label)
         self.frames_count = count_frames(file_path)
         self.video_slider.set_max_frames(self.frames_count)
+        self.video_width, self.video_height = get_video_wh(file_path)
         self.video_path = file_path
 
     @pyqtSlot(int)
@@ -143,6 +162,35 @@ class VideoPlayer(QWidget):
         if self.video_path is not None:
             load_and_show_frame(self.video_path, self.video_frame_label, frame_number)
             self.current_frame = frame_number
+
+    @pyqtSlot(int, int, int, int)
+    def handle_region_selected(self, x0, y0, x1, y1):
+        x_min, y_min, x_max, y_max = self.translate_wh(x0, y0, x1, y1)
+        print(f"Selected video coords: ({x_min}, {y_min}) -> ({x_max}, {y_max})")
+
+    def translate_wh(self, x0, y0, x1, y1):
+        if None in (self.video_width, self.video_height):
+            print("⛔️ Відео не завантажено, або розміри ще не встановлені.")
+            return 0, 0, 0, 0
+
+        widget_width = self.video_frame_label.width()
+        widget_height = self.video_frame_label.height()
+
+        nx0 = x0 / widget_width
+        ny0 = y0 / widget_height
+        nx1 = x1 / widget_width
+        ny1 = y1 / widget_height
+
+        vx0 = int(nx0 * self.video_width)
+        vy0 = int(ny0 * self.video_height)
+        vx1 = int(nx1 * self.video_width)
+        vy1 = int(ny1 * self.video_height)
+
+        x_min, x_max = sorted([vx0, vx1])
+        y_min, y_max = sorted([vy0, vy1])
+
+        return x_min, y_min, x_max, y_max
+
 
 class SettingsItem(QWidget):
     def __init__(self, label_text: str, widget: QWidget, parent=None):

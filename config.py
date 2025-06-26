@@ -9,7 +9,7 @@ STYLESHEET = """
         font-size: 14px;
     }
     QWidget#dropZone {
-        border: 2px dashed #e8c0e0;
+        border: 2px dashed #f48fb1;
         border-radius: 2px;
     }
     QGroupBox {
@@ -19,11 +19,11 @@ STYLESHEET = """
         font-weight: bold;
     }
     QTextEdit {
-        border: 2px dashed #e8c0e0;
+        border: 2px dashed #f48fb1;
         background-color: #f8fcfe;
     }
     QLabel#frameSelect {
-        border: 2px dashed #e8c0e0;
+        border: 2px dashed #f48fb1;
     }
     QSlider::groove:horizontal {
         border: 1px solid #f4b6c2;
