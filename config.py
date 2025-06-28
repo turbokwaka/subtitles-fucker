@@ -7,6 +7,7 @@ STYLESHEET = """
     QWidget {
         font-family: 'Montserrat';
         font-size: 14px;
+        color: #000000
     }
     QWidget#dropZone {
         border: 2px dashed #f48fb1;
@@ -41,11 +42,30 @@ STYLESHEET = """
         border-radius: 4px;
     }
     QSlider::handle:horizontal {
-    background: #f8f8f8;
-    border: 1px solid #ccc;
-    width: 14px;
-    height: 14px;
-    margin: -3px 0;
-    border-radius: 7px;
+        background: #f8f8f8;
+        border: 1px solid #ccc;
+        width: 14px;
+        height: 14px;
+        margin: -3px 0;
+        border-radius: 7px;
     }
+    QPushButton {
+        background: #f48fb1;
+        color: #ffffff;
+        border: 0px;
+        font-family: 'Montserrat';
+        font-weight: bold
+    }
+    
+    QComboBox {
+        background: #f48fb1;
+        color: #ffffff;
+        border: 0px;
+        font-family: 'Montserrat';
+        font-weight: bold
+    }
+    QComboBox:on {
+        background: #ff80ab;
+    }
+}
 """

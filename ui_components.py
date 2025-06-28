@@ -68,11 +68,11 @@ class VideoFrameLabel(QLabel):
             self.selecting = False
             self.end_point = event.pos()
             self.update()
-            x0, y0 = self.start_point.x(), self.start_point.y()
-            x1, y1 = self.end_point.x(), self.end_point.y()
+            y0, x0 = self.start_point.x(), self.start_point.y()
+            y1, x1 = self.end_point.x(), self.end_point.y()
 
             print(f"Selected rectangle: ({x0}, {y0}) -> ({x1}, {y1})")
-            self.region_selected.emit(x0, y0, x1, y1)
+            self.region_selected.emit(x0, y1, x1, y0)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -189,6 +189,7 @@ class VideoPlayer(QWidget):
         x_min, x_max = sorted([vx0, vx1])
         y_min, y_max = sorted([vy0, vy1])
 
+        print(f"Translated cords: ({x_min}, {y_min}) -> ({x_max}, {y_max})")
         return x_min, y_min, x_max, y_max
 
 
@@ -253,6 +254,7 @@ def create_main_widget(parent_window):
     frames_skip_setting = SettingsItem("Скіко кадрів пропускати?:", parent_window.select_frames_skip)
 
     parent_window.start_button = QPushButton("Погналі?")
+    # parent_window.start_button.setFixedSize(100,50)
     parent_window.start_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
     parent_window.start_button.clicked.connect(parent_window.start_transcription)
 

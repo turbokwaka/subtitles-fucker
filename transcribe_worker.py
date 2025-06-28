@@ -14,8 +14,8 @@ class TranscribeWorker(QThread):
         self.lang = lang
         self.crop_x = crop_x
         self.crop_y = crop_y
-        self.x_width = crop_height
-        self.y_width = crop_width
+        self.crop_width = crop_height
+        self.crop_height = crop_width
 
     def run(self):
         try:
@@ -31,15 +31,15 @@ class TranscribeWorker(QThread):
                   f"lang: {self.lang}\n"
                   f"crop_x: {self.crop_x}\n"
                   f"crop_y: {self.crop_y}\n"
-                  f"crop_width: {self.x_width}\n"
-                  f"crop_height: {self.y_width}\n")
+                  f"crop_width: {self.crop_width}\n"
+                  f"crop_height: {self.crop_height}\n")
             save_subtitles_to_file(video_path=self.video_path,
                                    frames_to_skip=self.frames_to_skip,
                                    lang=self.lang,
-                                   crop_x=self.crop_x,
-                                   crop_y=self.crop_y,
-                                   crop_width=self.x_width,
-                                   crop_height=self.y_width,
+                                   # crop_x=self.crop_x,
+                                   # crop_y=self.crop_y,
+                                   # crop_width=self.crop_width,
+                                   # crop_height=self.crop_height,
                                    )
             self.finished.emit(True, "Обробка завершена!")
             print()
