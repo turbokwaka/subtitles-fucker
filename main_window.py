@@ -3,9 +3,11 @@
 import os
 
 from PyQt6.QtGui import QIcon, QFontDatabase
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QFileDialog
+from PyQt6.QtCore import QThread
 
 from config import STYLESHEET
+from transcribe_worker import TranscribeWorker
 
 
 class MainWindow(QMainWindow):
@@ -13,7 +15,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("ти уйобіще, закрий мене")
-        self.setFixedWidth(750)
+        self.setFixedWidth(1400)
         self.setFixedHeight(750)
         QFontDatabase.addApplicationFont("assets/Montserrat-Regular.ttf")
         QFontDatabase.addApplicationFont("assets/Montserrat-Bold.ttf")
@@ -26,12 +28,8 @@ class MainWindow(QMainWindow):
         central_widget = create_main_widget(self)
         self.setStyleSheet(STYLESHEET)
         self.setCentralWidget(central_widget)
-        print(self.width(), self.height())
 
     def start_transcription(self):
-        from transcribe_worker import TranscribeWorker
-        from PyQt6.QtCore import QThread
-        from PyQt6.QtWidgets import QMessageBox
 
         if not self.video_player.video_path:
             QMessageBox.warning(self, "Помилка", "Спочатку завантаж відео!")
@@ -39,6 +37,10 @@ class MainWindow(QMainWindow):
         if not self.crop_rect:
             QMessageBox.warning(self, "Помилка", "Не виділена область на відео.")
             return
+
+        self.gif_label.show()
+        self.subtitles_output.setText("")
+        self.start_button.setEnabled(False)
 
         x0, y0, x1, y1 = self.crop_rect
         lang = self.select_lang.currentData()
@@ -62,9 +64,9 @@ class MainWindow(QMainWindow):
         self.thread.finished.connect(self.thread.deleteLater)
 
         def on_finished(success, msg):
-            QMessageBox.information(self, "Результат", msg if success else f"❌ {msg}")
+            self.gif_label.hide()
+            self.start_button.setEnabled(False)
+            self.subtitles_output.setText(msg)
 
         self.worker.finished.connect(on_finished)
         self.thread.start()
-
-

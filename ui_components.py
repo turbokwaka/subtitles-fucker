@@ -1,8 +1,9 @@
 # ui_components.py
 
 from PyQt6.QtCore import QTimer, pyqtSlot, QRect
-from PyQt6.QtGui import QPainter, QPen, QColor
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QGroupBox, QTextEdit, QComboBox, QPushButton, QSlider, QSizePolicy
+from PyQt6.QtGui import QPainter, QPen, QColor, QMovie
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QGroupBox, QTextEdit, QComboBox, QPushButton, QSlider, QSizePolicy, \
+    QApplication, QFileDialog
 
 from video_utils import load_and_show_frame, count_frames, get_video_wh
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout
@@ -15,7 +16,7 @@ class DropWidget(QFrame):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        self.label = QLabel("Засади мені")
+        self.label = QLabel("Обери або перетягни файл")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout = QVBoxLayout()
         layout.addWidget(self.label)
@@ -37,6 +38,19 @@ class DropWidget(QFrame):
             event.acceptProposedAction()
         else:
             event.ignore()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Оберіть відеофайл",
+                "",
+                "Відеофайли (*.mp4 *.avi *.mkv *.mov *.webm)"
+            )
+            if file_path:
+                self.label.setText(f"{os.path.basename(file_path)}")
+                self.fileDropped.emit(file_path)
+        super().mouseReleaseEvent(event)
 
 class VideoFrameLabel(QLabel):
     region_selected = pyqtSignal(int, int, int, int)
@@ -71,6 +85,16 @@ class VideoFrameLabel(QLabel):
             y0, x0 = self.start_point.x(), self.start_point.y()
             y1, x1 = self.end_point.x(), self.end_point.y()
 
+            if x0 > x1:
+                x_temp = x0
+                x0 = x1
+                x1 = x_temp
+
+            if y0 > y1:
+                y_temp = y0
+                y0 = y1
+                y1 = y_temp
+
             print(f"Selected rectangle: ({x0}, {y0}) -> ({x1}, {y1})")
             self.region_selected.emit(x0, y1, x1, y0)
 
@@ -82,7 +106,6 @@ class VideoFrameLabel(QLabel):
             painter.setPen(pen)
             rect = QRect(self.start_point, self.end_point)
             painter.drawRect(rect)
-
 
 class VideoSlider(QWidget):
     frame_selected = pyqtSignal(int)
@@ -192,7 +215,6 @@ class VideoPlayer(QWidget):
         print(f"Translated cords: ({x_min}, {y_min}) -> ({x_max}, {y_max})")
         return x_min, y_min, x_max, y_max
 
-
 class SettingsItem(QWidget):
     def __init__(self, label_text: str, widget: QWidget, parent=None):
         super().__init__(parent)
@@ -217,11 +239,11 @@ def create_main_widget(parent_window):
     parent_window.drop_widget.setObjectName("dropZone")
     source_layout.addWidget(parent_window.drop_widget)
 
-    parent_window.text_edit = QTextEdit()
-    source_layout.addWidget(QLabel("🔗 Посилання на відео?:"))
-    parent_window.text_edit.setPlaceholderText("Посилання на YouTube відео...")
-    parent_window.text_edit.setMaximumHeight(30)
-    source_layout.addWidget(parent_window.text_edit)
+    # parent_window.text_edit = QTextEdit()
+    # source_layout.addWidget(QLabel("🔗 Посилання на відео?:"))
+    # parent_window.text_edit.setPlaceholderText("Посилання на YouTube відео...")
+    # parent_window.text_edit.setMaximumHeight(30)
+    # source_layout.addWidget(parent_window.text_edit)
     left_layout.addWidget(source_group)
 
     settings_group = QGroupBox("⚙️ Налаштування")
@@ -254,7 +276,7 @@ def create_main_widget(parent_window):
     frames_skip_setting = SettingsItem("Скіко кадрів пропускати?:", parent_window.select_frames_skip)
 
     parent_window.start_button = QPushButton("Погналі?")
-    # parent_window.start_button.setFixedSize(100,50)
+    parent_window.start_button.setFixedSize(100,50)
     parent_window.start_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
     parent_window.start_button.clicked.connect(parent_window.start_transcription)
 
@@ -266,7 +288,50 @@ def create_main_widget(parent_window):
     settings_layout.addLayout(select_settings)
 
     left_layout.addWidget(settings_group, stretch=1)
-    main_layout.addLayout(left_layout)
+
+    subtitles_group = QGroupBox("Вивід субтитрів")
+    subtitles_layout = QVBoxLayout(subtitles_group)
+    parent_window.subtitles_output = QTextEdit()
+    parent_window.subtitles_output.setReadOnly(True)
+    parent_window.subtitles_output.setPlaceholderText("Тут з'являться субтитри...")
+
+    parent_window.gif_label = QLabel(parent_window.subtitles_output)
+    parent_window.gif_label.setStyleSheet("background: transparent;")
+
+    movie = QMovie("assets/pikachu.gif")
+    parent_window.gif_label.setMovie(movie)
+    movie.start()
+
+    def center_gif():
+        edit = parent_window.subtitles_output
+        rect = edit.contentsRect()
+        w, h = rect.width(), rect.height()
+        lw, lh = parent_window.gif_label.width(), parent_window.gif_label.height()
+        x = ((w - lw) // 2) - 40
+        y = ((h - lh) // 2) + 40
+        parent_window.gif_label.move(x, y)
+        parent_window.gif_label.raise_()
+
+    parent_window.copy_button = QPushButton("Скопіювати")
+    parent_window.copy_button.setFixedHeight(50)
+
+    parent_window.gif_label.show()
+    center_gif()
+    parent_window.gif_label.hide()
+
+    def copy_subtitles():
+        text = parent_window.subtitles_output.toPlainText()
+        QApplication.clipboard().setText(text)
+
+    parent_window.copy_button.clicked.connect(copy_subtitles)
+
+    # Додаємо кнопку та поле виводу у layout
+    subtitles_layout.addWidget(parent_window.subtitles_output)
+    subtitles_layout.addWidget(parent_window.copy_button)
+    right_layout.addWidget(subtitles_group)
+
+    main_layout.addLayout(left_layout, stretch=3)
+    main_layout.addLayout(right_layout, stretch=2)
 
     return central_widget
 
